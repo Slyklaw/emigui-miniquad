@@ -25,7 +25,7 @@ pub struct Painter {
 
 impl Painter {
     pub fn new(ctx: &mut Context) -> Painter {
-        let shader = Shader::new(ctx, shader::VERTEX, shader::FRAGMENT, shader::META);
+        let shader = Shader::new(ctx, shader::VERTEX, shader::FRAGMENT, shader::meta());
 
         let pipeline = Pipeline::with_params(
             ctx,
@@ -74,7 +74,7 @@ impl Painter {
     }
 
     fn rebuild_texture(&mut self, ctx: &mut Context, texture: &Texture) {
-        self.texture_hash = texture.id;
+        self.texture_hash = texture.version;
 
         self.bindings.images[0].delete();
 
@@ -99,7 +99,7 @@ impl Painter {
 
 
     pub fn paint(&mut self, ctx: &mut Context, jobs: PaintJobs, texture: &Texture) {
-        if texture.id != self.texture_hash {
+        if texture.version != self.texture_hash {
             self.rebuild_texture(ctx, texture);
         }
 
@@ -136,8 +136,8 @@ impl Painter {
             .iter()
             .map(|x| Vertex {
                 pos: (x.pos.x, x.pos.y),
-                uv: x.uv,
-                color: (x.color.0[0], x.color.0[1], x.color.0[2], x.color.0[3]),
+                uv: (x.uv.x as u16, x.uv.y as u16),
+                color: (x.color.r(), x.color.g(), x.color.b(), x.color.a()),
             })
             .collect::<Vec<Vertex>>();
         self.bindings.vertex_buffers[0].update(ctx, &vertices);
@@ -219,15 +219,17 @@ mod shader {
     }
     "#;
 
-    pub const META: ShaderMeta = ShaderMeta {
-        images: &["u_sampler"],
-        uniforms: UniformBlockLayout {
-            uniforms: &[
-                UniformDesc::new("u_screen_size", UniformType::Float2),
-                UniformDesc::new("u_tex_size", UniformType::Float2),
-            ],
-        },
-    };
+    pub fn meta() -> ShaderMeta {
+        ShaderMeta {
+            images: vec!["u_sampler".to_string()],
+            uniforms: UniformBlockLayout {
+                uniforms: vec![
+                    UniformDesc::new("u_screen_size", UniformType::Float2),
+                    UniformDesc::new("u_tex_size", UniformType::Float2),
+                ],
+            },
+        }
+    }
 
     #[repr(C)]
     #[derive(Debug)]
